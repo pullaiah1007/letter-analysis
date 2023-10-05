@@ -1,0 +1,101 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from tensorflow.keras.utils import to_categorical
+
+# Load the MNIST dataset
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+# Preprocess the data
+X_train = X_train.reshape(-1, 28, 28, 1).astype('float32') / 255.0
+X_test = X_test.reshape(-1, 28, 28, 1).astype('float32') / 255.0
+y_train = to_categorical(y_train)
+y_test = to_categorical(y_test)
+
+# Build the CNN model
+model = Sequential()
+model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)))
+model.add(MaxPooling2D((2, 2)))
+model.add(Conv2D(64, (3, 3), activation='relu'))
+model.add(MaxPooling2D((2, 2)))
+model.add(Conv2D(64, (3, 3), activation='relu'))
+model.add(Flatten())
+model.add(Dense(64, activation='relu'))
+model.add(Dense(10, activation='softmax'))
+
+# Compile and train the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=10, batch_size=128, validation_data=(X_test, y_test))
+
+# Evaluate the model
+test_loss, test_acc = model.evaluate(X_test, y_test)
+print('Test Loss:', test_loss)
+print('Test Accuracy:', test_acc)
+
+# Make predictions on new images
+predictions = model.predict(X_test[:6])
+predicted_labels = np.argmax(predictions, axis=1)
+
+# Visualize the predictions
+fig, axes = plt.subplots(2, 5, figsize=(10, 4))
+axes = axes.flatten()
+for i, ax in enumerate(axes):
+    ax.imshow(X_test[i].reshape(28, 28), cmap='gray')
+    ax.set_title('Predicted: {}'.format(predicted_labels[i]))
+    ax.axis('off')
+plt.tight_layout()
+plt.show()
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+
+data = pd.read_csv('TATA sales.csv')
+
+data = data.sort_values('Date')
+
+close_price = data['Close'].values.reshape(-1, 1)
+
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled_close_price = scaler.fit_transform(close_price)
+
+# Split the data into training and testing set
+train_size = int(len(scaled_close_price) * 0.8)
+test_size = len(scaled_close_price) - train_size
+train_data, test_data = scaled_close_price[0:train_size, :], scaled_close_price[train_size:len(scaled_close_price), :]
+
+def create_sequences(data, sequence_length):
+    X = []
+    y = []
+    for i in range(len(data) - sequence_length - 1):
+        X.append(data[i:(i + sequence_length), 0])
+        y.append(data[i + sequence_length, 0])
+    return np.array(X), np.array(y)
+
+sequence_length = 30
+X_train, y_train = create_sequences(train_data, sequence_length)
+X_test, y_test = create_sequences(test_data, sequence_length)
+
+X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
+X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+
+model = Sequential()
+model.add(LSTM(units=50, return_sequences=True, input_shape=(sequence_length, 1)))
+model.add(LSTM(units=50))
+model.add(Dense(units=1))
+
+model.compile(optimizer='adam', loss='mean_squared_error')
+model.fit(X_train, y_train, epochs=6, batch_size=32)
+
+predictions = model.predict(X_test)
+predictions = scaler.inverse_transform(predictions)
+
+plt.plot(close_price[train_size + sequence_length + 1:], label='Actual Price')
+plt.plot(predictions, label='Predict Price')
+plt.legend()
+plt.show()
+print(data)
